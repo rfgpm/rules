@@ -9,8 +9,12 @@ namespace Drupal\rules\Plugin\Action;
 
 use Drupal\ban\BanIpManagerInterface;
 use Drupal\Component\Utility\String;
+use Drupal\Core\Annotation\Action;
+use Drupal\Core\Annotation\Translation;
+use Drupal\Core\Annotation\ContextDefinition;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
-use Drupal\rules\Engine\RulesActionBase;
+use Drupal\rules\Core\RulesActionBase;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -43,6 +47,12 @@ class BlockIP extends RulesActionBase implements ContainerFactoryPluginInterface
   protected $banManager;
 
   /**
+   * The corresponding Request
+   * @var \Symfony\Component\HttpFoundation\Request
+   */
+  protected $request;
+
+  /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
@@ -50,7 +60,8 @@ class BlockIP extends RulesActionBase implements ContainerFactoryPluginInterface
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('ban.ip_manager')
+      $container->get('ban.ip_manager'),
+      $container->get('request')
     );
   }
 
@@ -65,10 +76,13 @@ class BlockIP extends RulesActionBase implements ContainerFactoryPluginInterface
    *   The plugin implementation definition.
    * @param \Drupal\ban\BanIpManagerInterface $banManager
    *   The ban manager service.
+   * @param \Symfony\Component\HttpFoundation\Request
+   *   The Symfony HTTP Foundation
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, BanIpManagerInterface $banManager) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, BanIpManagerInterface $banManager, Request $request) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->banManager = $banManager;
+    $this->request = $request;
   }
 
   /**
@@ -83,6 +97,11 @@ class BlockIP extends RulesActionBase implements ContainerFactoryPluginInterface
    */
   public function execute() {
     $ip = $this->getContextValue('ip');
+
+    if (!isset($ip)) {
+      $ip = $this->request->getClientIp();
+    }
+
     $this->banManager->banIp($ip);
   }
 }
